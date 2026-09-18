@@ -1,0 +1,41 @@
+# render.yaml — Blueprint do Render para o NOVVO | Controle de Revestimentos
+#
+# IMPORTANTE: este blueprint define só o Web Service. Ele NÃO cria um
+# PostgreSQL, de propósito — o banco `novvo-postgres` já existe na sua conta
+# Render (criado manualmente). Blueprints só conseguem linkar automaticamente
+# (via `fromDatabase`) bancos que o PRÓPRIO blueprint cria; não é possível
+# apontar para um banco pré-existente dessa forma. Por isso `DATABASE_URL`
+# abaixo está marcada `sync: false`: o Render vai pedir para você colar o
+# valor manualmente na primeira vez (copie a "Internal Database URL" da
+# página do banco `novvo-postgres` no painel do Render).
+#
+# Como usar: no painel do Render, "New +" → "Blueprint" → aponte para o
+# repositório GitHub que contém este arquivo na raiz. Ver README.md, seção
+# "Guia de publicação no Render", para o passo a passo completo.
+#
+# Alternativa igualmente válida (não usa este arquivo): criar o Web Service
+# manualmente com "New +" → "Web Service", sem Blueprint — ver seção 9 do
+# README para os valores exatos de cada campo.
+
+services:
+  - type: web
+    name: novvo-revestimentos
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: npm install && npm run migrate
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false   # cole aqui a Internal Database URL do banco novvo-postgres já existente
+      # Chave de assinatura dos tokens de sessão (login). generateValue:true
+      # faz o Render criar um valor aleatório e seguro sozinho — ninguém
+      # digita nem vê essa chave em lugar nenhum.
+      - key: JWT_SECRET
+        generateValue: true
