@@ -72,7 +72,11 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_at ON audit_logs (at DESC);
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS withdrawals (
   id          SERIAL PRIMARY KEY,
-  material_id TEXT NOT NULL REFERENCES materials(id),
+  material_id TEXT NOT NULL,   -- referencia materials.id "em espírito" — sem FK
+                                -- de propósito: o front usa variações do id
+                                -- base (ex.: "MAR-0001-P02" por unidade/pavimento)
+                                -- que nunca existiram como linha própria em
+                                -- materials, igual já era no localStorage original.
   material    TEXT NOT NULL,   -- desnormalizado propositalmente (snapshot do
                                 -- nome no momento da retirada, como no front)
   ambiente    TEXT,
@@ -116,7 +120,7 @@ CREATE TABLE IF NOT EXISTS deliveries (
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS losses (
   id          SERIAL PRIMARY KEY,
-  material_id TEXT REFERENCES materials(id),
+  material_id TEXT,   -- sem FK, mesmo motivo do withdrawals.material_id acima
   material    TEXT,
   ambiente    TEXT,
   torre       TEXT,
