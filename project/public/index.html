@@ -1419,7 +1419,34 @@ function printReceived(){
 const receivedSearch=$('receivedInvoiceSearch'); if(receivedSearch){receivedSearch.addEventListener('input',()=>{receivedInvoiceFilter=receivedSearch.value;renderReceived();});}
 const _printReceived=$('printReceived'); if(_printReceived) _printReceived.onclick=printReceived;
 
-function renderAll(){renderKPIs();renderLaminado();renderTypeSummary();renderWithdrawSummary();renderRecent();renderTable();renderHistory();renderArgamassa();renderMaterials();renderLosses();renderDeliveries();renderReceived();renderAdmin();if(document.getElementById('recebidos')?.classList.contains('active')&&typeof renderComparativo==='function')renderComparativo()}
+function renderAll(){renderKPIs();renderLaminado();renderTypeSummary();renderWithdrawSummary();renderRecent();renderTable();renderHistory();renderArgamassa();renderMaterials();renderLosses();renderDeliveries();renderReceived();renderAdmin();if(document.getElementById('recebidos')?.classList.contains('active')&&typeof renderComparativo==='function')renderComparativo()}let lastSyncAt = null;
+async function syncStateFromServer(manual){
+  const btn = $('btnSyncNow'), lbl = $('lastSyncLabel');
+  if(manual && btn) btn.disabled = true;
+  try{
+    const resp = await fetch(API_BASE + '/state');
+    if(!resp.ok) throw new Error('status ' + resp.status);
+    const data = await resp.json();
+    if(Array.isArray(data.withdrawals)) withdrawals = data.withdrawals;
+    if(Array.isArray(data.deliveryRows)) deliveryRows = data.deliveryRows;
+    if(Array.isArray(data.lossRows)) lossRows = data.lossRows;
+    if(data.boxInfo) boxInfo = data.boxInfo;
+    if(Array.isArray(data.profiles)) profiles = data.profiles;
+    if(Array.isArray(data.auditLogs)) auditLogs = data.auditLogs;
+    if(data.comparativoLotes) db = data.comparativoLotes;
+    if(data.sobrasLotes) leftovers = data.sobrasLotes;
+    lastSyncAt = new Date();
+    renderAll();
+    if(lbl) lbl.textContent = 'Atualizado às ' + lastSyncAt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  }catch(err){
+    console.warn('[sync] falha ao atualizar dados do servidor:', err);
+    if(manual && lbl) lbl.textContent = 'Falha ao atualizar — tente de novo';
+  }finally{
+    if(manual && btn) btn.disabled = false;
+  }
+}
+if($('btnSyncNow')) $('btnSyncNow').onclick = () => syncStateFromServer(true);
+setInterval(() => { if(sessionStorage.getItem('novvo_logged_in')==='1') syncStateFromServer(false); }, 30000);
 let pendingWithdrawalId=null;
 function requestWithdrawalAuth(id){
   const u=getCurrentUser();
