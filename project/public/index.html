@@ -1419,7 +1419,7 @@ function printReceived(){
 const receivedSearch=$('receivedInvoiceSearch'); if(receivedSearch){receivedSearch.addEventListener('input',()=>{receivedInvoiceFilter=receivedSearch.value;renderReceived();});}
 const _printReceived=$('printReceived'); if(_printReceived) _printReceived.onclick=printReceived;
 
-function renderAll(){renderKPIs();renderLaminado();renderTypeSummary();renderWithdrawSummary();renderRecent();renderTable();renderHistory();renderArgamassa();renderMaterials();renderLosses();renderDeliveries();renderReceived();renderAdmin();if(document.getElementById('recebidos')?.classList.contains('active')&&typeof renderComparativo==='function')renderComparativo()}let lastSyncAt = null;let lastSyncAt = null;
+function renderAll(){renderKPIs();renderLaminado();renderTypeSummary();renderWithdrawSummary();renderRecent();renderTable();renderHistory();renderArgamassa();renderMaterials();renderLosses();renderDeliveries();renderReceived();renderAdmin();if(document.getElementById('recebidos')?.classList.contains('active')&&typeof renderComparativo==='function')renderComparativo()}let lastSyncAt = null;
 async function syncStateFromServer(manual){
   const btn = $('btnSyncNow'), lbl = $('lastSyncLabel');
   if(manual && btn) btn.disabled = true;
