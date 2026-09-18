@@ -43,11 +43,26 @@ async function run() {
   const seedSqlPath = path.join(__dirname, '..', 'database', 'seed_materials.sql');
 
   let initSql = fs.readFileSync(initSqlPath, 'utf-8');
+  // A linha `\i /docker-entrypoint-initdb.d/seed_materials.sql` é um
+  // meta-comando do psql, não SQL — o driver `pg` não entende. Removemos e
+  // executamos o seed separadamente logo abaixo, já com verificação de
+  // idempotência.
   initSql = initSql.replace(/^\\i .*seed_materials\.sql.*$/m, '-- seed executado separadamente por scripts/migrate.js');
 
   console.log('[migrate] aplicando database/init.sql ...');
   await pool.query(initSql);
   console.log('[migrate] schema OK.');
+
+  // Remove a restrição de chave estrangeira em withdrawals.material_id e
+  // losses.material_id, se ainda existir de uma versão anterior do schema.
+  // O front usa variações do id base (ex.: "MAR-0001-P02" por unidade/
+  // pavimento) que nunca existiram como linha própria em materials — a FK
+  // rejeitava retiradas legítimas. IF EXISTS torna isso seguro de rodar
+  // sempre, mesmo em bancos onde a FK já não existe mais.
+  console.log('[migrate] removendo FK antiga de material_id (se existir) ...');
+  await pool.query('ALTER TABLE withdrawals DROP CONSTRAINT IF EXISTS withdrawals_material_id_fkey');
+  await pool.query('ALTER TABLE losses DROP CONSTRAINT IF EXISTS losses_material_id_fkey');
+  console.log('[migrate] FK removida (ou já não existia).');
 
   const { rows } = await pool.query('SELECT COUNT(*)::int AS count FROM materials');
   if (rows[0].count > 0) {
@@ -73,6 +88,11 @@ async function run() {
       'POST/PUT /api/users.'
     );
   } else if (shouldReset && usersCount.rows[0].count > 0) {
+    // RESET_DEFAULT_PASSWORDS=true: reaplica a senha atual de
+    // DEFAULT_ADMIN_PASSWORD/DEFAULT_TEST_PASSWORD nos 3 usuários padrão,
+    // mesmo que já existam. Útil para recuperar acesso caso a senha
+    // original tenha sido esquecida/perdida. Não mexe em outros usuários
+    // criados manualmente depois. Desligue essa variável depois de usar.
     console.log('[migrate] RESET_DEFAULT_PASSWORDS=true — atualizando senha dos usuários padrão ...');
     for (const u of DEFAULT_USERS) {
       const hash = await bcrypt.hash(u.password, 10);
