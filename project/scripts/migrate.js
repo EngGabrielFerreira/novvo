@@ -43,10 +43,6 @@ async function run() {
   const seedSqlPath = path.join(__dirname, '..', 'database', 'seed_materials.sql');
 
   let initSql = fs.readFileSync(initSqlPath, 'utf-8');
-  // A linha `\i /docker-entrypoint-initdb.d/seed_materials.sql` é um
-  // meta-comando do psql, não SQL — o driver `pg` não entende. Removemos e
-  // executamos o seed separadamente logo abaixo, já com verificação de
-  // idempotência.
   initSql = initSql.replace(/^\\i .*seed_materials\.sql.*$/m, '-- seed executado separadamente por scripts/migrate.js');
 
   console.log('[migrate] aplicando database/init.sql ...');
@@ -64,16 +60,28 @@ async function run() {
   }
 
   const usersCount = await pool.query('SELECT COUNT(*)::int AS count FROM users');
-  if (usersCount.rows[0].count > 0) {
+  const shouldReset = process.env.RESET_DEFAULT_PASSWORDS === 'true';
+
+  if (usersCount.rows[0].count > 0 && !shouldReset) {
     console.log(`[migrate] tabela users já populada (${usersCount.rows[0].count} usuários) — seed padrão ignorado.`);
   } else if (!DEFAULT_ADMIN_PASSWORD || !DEFAULT_TEST_PASSWORD) {
     console.warn(
-      '[migrate] AVISO: tabela users está vazia, mas DEFAULT_ADMIN_PASSWORD e/ou ' +
-      'DEFAULT_TEST_PASSWORD não estão definidas — nenhum usuário padrão foi criado ' +
-      '(não existe senha de fábrica no código). Defina essas duas variáveis de ambiente ' +
-      'e rode "npm run migrate" novamente para criar os 3 usuários iniciais, ou crie ' +
-      'usuários manualmente via POST /api/users.'
+      '[migrate] AVISO: DEFAULT_ADMIN_PASSWORD e/ou DEFAULT_TEST_PASSWORD não estão ' +
+      'definidas — nenhum usuário padrão foi criado/atualizado (não existe senha de ' +
+      'fábrica no código). Defina essas duas variáveis de ambiente e rode ' +
+      '"npm run migrate" novamente, ou crie/edite usuários manualmente via ' +
+      'POST/PUT /api/users.'
     );
+  } else if (shouldReset && usersCount.rows[0].count > 0) {
+    console.log('[migrate] RESET_DEFAULT_PASSWORDS=true — atualizando senha dos usuários padrão ...');
+    for (const u of DEFAULT_USERS) {
+      const hash = await bcrypt.hash(u.password, 10);
+      await pool.query(
+        `UPDATE users SET password = $2, active = true, updated_at = now() WHERE username = $1`,
+        [u.username, hash]
+      );
+    }
+    console.log(`[migrate] senha de ${DEFAULT_USERS.length} usuários padrão redefinida.`);
   } else {
     console.log('[migrate] criando usuários padrão (senha hasheada com bcrypt) ...');
     for (const u of DEFAULT_USERS) {
