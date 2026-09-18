@@ -38,7 +38,29 @@ app.use(express.json({ limit: '5mb' }));
 // -----------------------------------------------------------------------
 // Front-end estático (HTML/CSS/JS existentes, preservados como estavam)
 // -----------------------------------------------------------------------
-app.use(express.static(path.join(__dirname, 'public')));
+// O index.html NUNCA pode ficar em cache do navegador: se ficar, um
+// aparelho pode rodar uma cópia antiga do JS por horas, com os dados de
+// retiradas/entregas congelados no que era verdade quando a página
+// carregou — e ao salvar qualquer coisa depois, a sincronização
+// (PUT /api/withdrawals etc., que substitui a lista inteira) manda esses
+// dados velhos de volta, apagando o que outro usuário fez nesse meio
+// tempo. Por isso index.html sempre revalida no servidor a cada acesso.
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  },
+}));
+
+// As respostas da API também nunca devem ficar em cache do navegador —
+// mesmo motivo acima.
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 
 // -----------------------------------------------------------------------
 // Healthcheck — verifica servidor + PostgreSQL, sem expor dados sensíveis
