@@ -7,9 +7,9 @@ async function getFullState(req, res, next) {
   try {
     const [withdrawals, deliveries, losses, boxInfoRows, profiles, auditLogs, comparativo, sobras] =
       await Promise.all([
-        pool.query('SELECT id, material_id AS id, material, ambiente, torre, pavimento, qty, date, time, by_name AS by, company, obs FROM withdrawals ORDER BY id'),
+        pool.query('SELECT material_id AS id, material, ambiente, torre, pavimento, qty, date, time, by_name AS "by", company, obs FROM withdrawals ORDER BY withdrawals.id'),
         pool.query('SELECT lote, medida1, medida2, reserva_pct AS "reservaPct", manutencao_pct AS "manutencaoPct", invoice, tonality, description, qty, delivery, date, legacy_m2 AS "_legacyM2" FROM deliveries ORDER BY id'),
-        pool.query('SELECT material_id AS id, material, ambiente, torre, pavimento, qty, date, reason, obs FROM losses ORDER BY id'),
+        pool.query('SELECT material_id AS id, material, ambiente, torre, pavimento, qty, date, reason, obs FROM losses ORDER BY losses.id'),
         pool.query('SELECT material_key, box_value FROM box_info'),
         pool.query('SELECT username AS user, name, role, is_admin AS admin, active FROM users ORDER BY id'),
         pool.query('SELECT username AS user, name, role, login_at AS "loginAt", saved_at AS "savedAt", at, duration_ms AS "durationMs", action, revision FROM audit_logs ORDER BY id'),
